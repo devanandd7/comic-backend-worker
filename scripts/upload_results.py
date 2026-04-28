@@ -2,6 +2,7 @@ import cloudinary
 import cloudinary.uploader
 import os
 import sys
+import glob
 
 def main():
     job_id = os.environ.get("JOB_ID")
@@ -11,26 +12,38 @@ def main():
         print("Missing JOB_ID or CLOUDINARY_URL. Skipping upload.")
         return
 
-    # cloudinary_url format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME
-    # The SDK handles this automatically if set in env
-    
-    video_path = "output/story.mp4"
-    if not os.path.exists(video_path):
-        print(f"Error: {video_path} not found.")
-        sys.exit(1)
+    # Upload Debug Grid
+    debug_path = "output/debug_grid.jpg"
+    if os.path.exists(debug_path):
+        print(f"Uploading debug grid...")
+        cloudinary.uploader.upload(
+            debug_path,
+            public_id=f"comic_results/{job_id}/debug_grid",
+            resource_type="image"
+        )
 
-    print(f"Uploading {video_path} to Cloudinary with ID: {job_id}...")
-    
-    try:
+    # Upload all panels
+    panels = sorted(glob.glob("output/panel_*.jpg"))
+    print(f"Uploading {len(panels)} panels...")
+    for i, panel_path in enumerate(panels):
+        cloudinary.uploader.upload(
+            panel_path,
+            public_id=f"comic_results/{job_id}/panel_{i+1:03d}",
+            resource_type="image"
+        )
+
+    # Upload Final Video
+    video_path = "output/story.mp4"
+    if os.path.exists(video_path):
+        print(f"Uploading video...")
         response = cloudinary.uploader.upload(
             video_path,
-            public_id=f"comic_story_{job_id}",
+            public_id=f"comic_results/{job_id}/story",
             resource_type="video"
         )
-        print(f"Successfully uploaded: {response['secure_url']}")
-    except Exception as e:
-        print(f"Upload failed: {e}")
-        sys.exit(1)
+        print(f"Final Video URL: {response['secure_url']}")
+    
+    print(f"Done! Results available under comic_results/{job_id}/")
 
 if __name__ == "__main__":
     main()
