@@ -38,14 +38,6 @@ jobs:
       run: |
         python scripts/detect_panels.py
 
-    - name: Normalize panels with FFmpeg
-      run: |
-        for f in output/panel_*.jpg; do
-          if [ -f "$f" ]; then
-            ffmpeg -i "$f" -vf "scale=1080:-1,pad=1080:1350:(ow-iw)/2:(oh-ih)/2" "${f%.jpg}_final.jpg"
-          fi
-        done
-
     - name: Build comic video
       run: |
         python scripts/build_video.py

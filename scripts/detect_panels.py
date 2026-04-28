@@ -1,5 +1,6 @@
 import cv2
 import os
+import numpy as np
 
 def sort_contours(cnts):
     if not cnts:
@@ -98,8 +99,32 @@ def main():
         y2 = min(img.shape[0], y + h + padding)
         
         crop = img[y1:y2, x1:x2]
-        cv2.imwrite(f"output/panel_{i:03d}.jpg", crop)
-        print(f"Saved output/panel_{i:03d}.jpg")
+        
+        # --- NORMALIZATION ---
+        target_w, target_h = 1080, 1350
+        
+        # Calculate scaling to fit width 1080
+        aspect = crop.shape[1] / crop.shape[0]
+        new_w = target_w
+        new_h = int(target_w / aspect)
+        
+        # If height is still too large, scale by height instead
+        if new_h > target_h:
+            new_h = target_h
+            new_w = int(target_h * aspect)
+            
+        resized = cv2.resize(crop, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+        
+        # Create black canvas
+        canvas = np.zeros((target_h, target_w, 3), dtype=np.uint8)
+        
+        # Center the resized image on canvas
+        y_offset = (target_h - new_h) // 2
+        x_offset = (target_w - new_w) // 2
+        canvas[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
+        
+        cv2.imwrite(f"output/panel_{i:03d}.jpg", canvas)
+        print(f"Saved normalized output/panel_{i:03d}.jpg")
         i += 1
 
 if __name__ == "__main__":
