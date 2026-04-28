@@ -17,9 +17,11 @@ import sys
 
 # ─────────────────────────────────────────────
 #  NORMALIZATION CONFIG
+#  Panel shape analysis: panels are ~1:1 square
+#  → canvas = 1080×1080
 # ─────────────────────────────────────────────
 TARGET_W = 1080
-TARGET_H = 1350
+TARGET_H = 1080
 
 
 def find_horizontal_borders(gray):
