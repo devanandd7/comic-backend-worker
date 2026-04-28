@@ -46,15 +46,15 @@ def detect_panels_with_gemini(img, api_key, model_name):
 
     prompt = f"""
 You are a comic panel detection expert. Analyze this comic collage.
-The image contains multiple panels that may NOT be in a uniform grid. Some panels might be wider or taller than others.
+The image contains multiple panels. Notice that each panel has a NUMBER in the top-left corner (1, 2, 3, etc.).
 
 Your task:
-1. Identify EVERY individual comic panel (including the title card and ending card).
+1. Identify EVERY individual comic panel using the numbers as a guide.
 2. For each panel, provide the bounding box in NORMALIZED coordinates (0-1000). 
-   - 0,0 is top-left.
-   - 1000,1000 is bottom-right.
-3. IMPORTANT: Detect the ACTUAL content of the panel, avoiding the white or black gutters (borders) between them.
-4. Sort panels in the intended reading order (usually left-to-right, then top-to-bottom).
+   - ymin, xmin, ymax, xmax.
+3. CRITICAL: Do NOT group multiple panels together. Even if they are in the same row, every numbered panel MUST have its own separate bounding box.
+4. Detect the ACTUAL content of each panel, cropping INSIDE the borders.
+5. Return the panels in numerical order.
 
 Return ONLY valid JSON. Format:
 [
