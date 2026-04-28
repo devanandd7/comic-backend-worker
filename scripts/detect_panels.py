@@ -57,21 +57,38 @@ def main():
 
     contours, _ = cv2.findContours(
         dilated,
-        cv2.RETR_EXTERNAL,
+        cv2.RETR_TREE,
         cv2.CHAIN_APPROX_SIMPLE
     )
 
-    # Filter out small contours
+    # Filter out small contours and the whole page itself
     valid_contours = []
+    img_h, img_w = img.shape[:2]
+    img_area = img_w * img_h
+
     for c in contours:
         x, y, w, h = cv2.boundingRect(c)
-        if w > 200 and h > 200: # Threshold for panel size
+        area = w * h
+        # Must be at least 1% of image but less than 80% to avoid picking up the whole page
+        if 0.01 * img_area < area < 0.8 * img_area:
             valid_contours.append(c)
 
     sorted_boxes = sort_contours(valid_contours)
 
-    i = 1
+    # Remove duplicates or near-duplicates
+    deduped_boxes = []
     for box in sorted_boxes:
+        is_duplicate = False
+        for d_box in deduped_boxes:
+            # If boxes are 90% same, skip
+            if abs(box[0]-d_box[0]) < 20 and abs(box[1]-d_box[1]) < 20:
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            deduped_boxes.append(box)
+
+    i = 1
+    for box in deduped_boxes:
         x, y, w, h = box
         # Add a little padding if possible
         padding = 10

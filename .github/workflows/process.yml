@@ -6,10 +6,15 @@ on:
       image_url:
         description: 'URL of the comic collage image to process'
         required: true
+      job_id:
+        description: 'Unique ID for this processing job'
+        required: true
 
 jobs:
   process:
     runs-on: ubuntu-latest
+    env:
+      CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
 
     steps:
     - uses: actions/checkout@v4
@@ -21,7 +26,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install opencv-python-headless numpy
+        pip install opencv-python-headless numpy cloudinary
         sudo apt-get update
         sudo apt-get install -y ffmpeg curl
 
@@ -44,6 +49,12 @@ jobs:
     - name: Build comic video
       run: |
         python scripts/build_video.py
+
+    - name: Upload to Cloudinary for Auto-Preview
+      run: |
+        python scripts/upload_results.py
+      env:
+        JOB_ID: ${{ github.event.inputs.job_id }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
