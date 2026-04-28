@@ -1,0 +1,52 @@
+name: Comic Processor
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_url:
+        description: 'URL of the comic collage image to process'
+        required: true
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        pip install opencv-python-headless numpy
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg curl
+
+    - name: Download uploaded image
+      run: |
+        curl -L "${{ github.event.inputs.image_url }}" -o input.jpg
+
+    - name: Detect and crop panels
+      run: |
+        python scripts/detect_panels.py
+
+    - name: Normalize panels with FFmpeg
+      run: |
+        for f in output/panel_*.jpg; do
+          if [ -f "$f" ]; then
+            ffmpeg -i "$f" -vf "scale=1080:-1,pad=1080:1350:(ow-iw)/2:(oh-ih)/2" "${f%.jpg}_final.jpg"
+          fi
+        done
+
+    - name: Build comic video
+      run: |
+        python scripts/build_video.py
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: comic-output
+        path: output/
