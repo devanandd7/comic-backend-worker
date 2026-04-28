@@ -45,20 +45,20 @@ def detect_panels_with_gemini(img, api_key, model_name):
     img_b64 = base64.b64encode(buffer).decode("utf-8")
 
     prompt = f"""
-You are analyzing a comic collage image that is {W}x{H} pixels.
-The image contains multiple comic panels arranged in a grid.
+You are a comic panel detection expert. Analyze this comic collage.
+The image contains multiple panels that may NOT be in a uniform grid. Some panels might be wider or taller than others.
 
 Your task:
-1. Identify EVERY individual comic panel in the image.
-2. Return their bounding boxes as a JSON array.
-3. Coordinates must be in PIXELS (not normalized).
-4. Sort panels in reading order: left-to-right, top-to-bottom.
-5. Do NOT include the outer image border as a panel.
+1. Identify EVERY individual comic panel (including the title card and ending card).
+2. For each panel, provide the bounding box in NORMALIZED coordinates (0-1000). 
+   - 0,0 is top-left.
+   - 1000,1000 is bottom-right.
+3. IMPORTANT: Detect the ACTUAL content of the panel, avoiding the white or black gutters (borders) between them.
+4. Sort panels in the intended reading order (usually left-to-right, then top-to-bottom).
 
-Return ONLY valid JSON, nothing else. Format:
+Return ONLY valid JSON. Format:
 [
-  {{"id": 1, "x1": 10, "y1": 10, "x2": 300, "y2": 280}},
-  {{"id": 2, "x1": 305, "y1": 10, "x2": 600, "y2": 280}},
+  {{"id": 1, "ymin": 0, "xmin": 0, "ymax": 250, "xmax": 250}},
   ...
 ]
 """
@@ -79,7 +79,7 @@ Return ONLY valid JSON, nothing else. Format:
             ]
         }],
         "generationConfig": {
-            "temperature": 0.1,      # Low temperature = more precise/consistent
+            "temperature": 0,
             "maxOutputTokens": 4096,
             "responseMimeType": "application/json"
         }
@@ -97,34 +97,35 @@ Return ONLY valid JSON, nothing else. Format:
         method="POST"
     )
 
-    print(f"[Gemini] Sending image to {model_name}...")
+    print(f"[Gemini] Sending image to {model_name} (using normalized coords)...")
     response_text = urllib.request.urlopen(req, timeout=60).read().decode("utf-8")
     response_json = json.loads(response_text)
 
     # Extract the text content from the response
     raw_text = response_json["candidates"][0]["content"]["parts"][0]["text"]
-    print(f"[Gemini] Raw response (first 500 chars): {raw_text[:500]}")
-
-    # Extract JSON from response (handle markdown code blocks if present)
+    
+    # Extract JSON from response
     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
     if not json_match:
+        print(f"[Gemini] Error: No JSON found in response: {raw_text}")
         raise ValueError("Gemini did not return a valid JSON array")
 
     panels_data = json.loads(json_match.group())
 
-    # Validate and clamp coordinates
+    # Convert normalized coordinates back to pixels
     panels = []
     for p in panels_data:
-        x1 = max(0, int(p["x1"]))
-        y1 = max(0, int(p["y1"]))
-        x2 = min(W, int(p["x2"]))
-        y2 = min(H, int(p["y2"]))
+        # ymin, xmin, ymax, xmax (normalized 0-1000)
+        y1 = int(p["ymin"] * H / 1000)
+        x1 = int(p["xmin"] * W / 1000)
+        y2 = int(p["ymax"] * H / 1000)
+        x2 = int(p["xmax"] * W / 1000)
 
-        # Skip if box is too small
-        if (x2 - x1) < 30 or (y2 - y1) < 30:
+        # Skip if box is invalid or too small
+        if (x2 - x1) < 20 or (y2 - y1) < 20:
             continue
 
-        panels.append({"id": p["id"], "x1": x1, "y1": y1, "x2": x2, "y2": y2})
+        panels.append({"id": p.get("id", len(panels)+1), "x1": x1, "y1": y1, "x2": x2, "y2": y2})
 
     print(f"[Gemini] Detected {len(panels)} panels")
     return panels
