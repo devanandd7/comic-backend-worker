@@ -321,7 +321,7 @@ def main():
 
     # ── Read Gemini credentials ──────────────────────────────────────────────
     api_key    = os.environ.get("GEMINI_API_KEY", "")
-    model_name = os.environ.get("GEMINI_MODEL_NAME", "gemini-2.5-flash-preview-04-17")
+    model_name = os.environ.get("GEMINI_MODEL_NAME", "gemini-2.0-flash")
 
     panels = []
 
